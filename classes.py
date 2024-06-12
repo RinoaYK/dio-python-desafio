@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import datetime
+
 
 class ContasIterador:
     def __init__(self, accounts):
@@ -26,16 +27,17 @@ class ContasIterador:
 
 
 class Client:
-    def __init__(self, adress):        
+    def __init__(self, adress):
         self.adress = adress
         self.accounts = []
         self.account_indice = 0
-    
+
     def transacao(self, account, transacao):
         return transacao.registrar(account)
 
     def add_account(self, account):
         self.accounts.append(account)
+
 
 class PessoaFisica(Client):
     def __init__(self, name, birthday, cpf, adress):
@@ -47,6 +49,7 @@ class PessoaFisica(Client):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}: ('{self.name}', '{self.cpf}')>"
 
+
 class Account(ABC):
     def __init__(self, number, client):
         self._saldo = 0
@@ -54,19 +57,19 @@ class Account(ABC):
         self._agencia = '0001'
         self._client = client
         self._history = History()
-    
+
     @classmethod
     def new_account(cls, client, number):
         return cls(number, client)
-    
+
     @property
     def saldo(self):
         return self._saldo
-    
+
     @property
     def number(self):
         return self._number
-    
+
     @property
     def agencia(self):
         return self._agencia
@@ -74,19 +77,19 @@ class Account(ABC):
     @property
     def client(self):
         return self._client
-    
+
     @property
     def history(self):
         return self._history
-    
+
     def sacar(self, value):
         saldo = self.saldo
-        excedeu_saldo = value > saldo    
+        excedeu_saldo = value > saldo
 
         if excedeu_saldo:
             print("Operação falhou! Você não tem saldo suficiente.")
             return False
-        
+
         elif value > 0:
             self._saldo -= value
             return True
@@ -94,7 +97,7 @@ class Account(ABC):
         else:
             print("Operação falhou! O valor informado é inválido.")
             return False
-    
+
     def depositar(self, valor):
         if valor > 0:
             self._saldo += valor
@@ -102,16 +105,17 @@ class Account(ABC):
         else:
             print("Operação falhou! O valor informado é inválido.")
             return False
-    
+
+
 class ContaCorrente(Account):
     def __init__(self, number, client, limit=500, saque_limit=3):
         super().__init__(number, client)
         self.limit = limit
         self.saque_limit = saque_limit
-    
+
     def sacar(self, value):
         saque_number = len([transacao for transacao in self.history.transacoes if transacao["tipo"] == Saque.__name__])
-        
+
         excedeu_limite = value > self.limit
         excedeu_saques = saque_number >= self.saque_limit
 
@@ -124,17 +128,18 @@ class ContaCorrente(Account):
             return False
 
         return super().sacar(value)
-    
+
     def __str__(self):
         return f"""
         Agência: {self.agencia}
         C/C: {self.number}
         Titular: {self.client.name}
         """
-    
+
     def __repr__(self):
         return f"<{self.__class__.__name__}: ('{self.agencia}', '{self.number}', '{self.client.name}')>"
- 
+
+
 class History:
     def __init__(self):
         self._transacoes = []
@@ -143,14 +148,14 @@ class History:
     def transacoes(self):
         return self._transacoes
 
-    def add_transacao(self, transacao):        
+    def add_transacao(self, transacao):
         hoje = datetime.now().strftime("%d-%m-%Y")
         transacoes_hoje = [t for t in self._transacoes if t["data"].startswith(hoje)]
-        
+
         if len(transacoes_hoje) >= 10:
             print("Operação falhou! Número máximo de transações diárias excedido.")
             return False
-        
+
         self._transacoes.append(
             {
                 "tipo": transacao.__class__.__name__,
@@ -165,8 +170,9 @@ class History:
             if tipo_transacao is None or transacao["tipo"].lower() == tipo_transacao.lower():
                 yield transacao
 
+
 class Transacao(ABC):
-    @property    
+    @property
     @abstractmethod
     def value(self):
         pass
@@ -174,6 +180,7 @@ class Transacao(ABC):
     @abstractmethod
     def registrar(self, account):
         pass
+
 
 class Saque(Transacao):
     def __init__(self, value):
@@ -190,6 +197,7 @@ class Saque(Transacao):
             return account.history.add_transacao(self)
         return False
 
+
 class Deposito(Transacao):
     def __init__(self, value):
         self._value = value
@@ -205,6 +213,7 @@ class Deposito(Transacao):
             return account.history.add_transacao(self)
         return False
 
+
 def log_transacao(func):
     def envelope(*args, **kwargs):
         resultado = func(*args, **kwargs)
@@ -217,7 +226,7 @@ def log_transacao(func):
 def menu():
     menu = """
 ⥢-----------------------------------------⥤
-    
+
     Selecione a opção desejada:
 
     [1] Depositar       [4] Nova Conta
@@ -230,16 +239,19 @@ def menu():
     => """
     return input(menu)
 
+
 def filter_user(cpf, users):
     usuarios_filtrados = [user for user in users if user.cpf == cpf]
     return usuarios_filtrados[0] if usuarios_filtrados else None
+
 
 def recover_user_account(user):
     if not user.accounts:
         print("Cliente não possui conta! Crie uma conta para ter acesso!")
         return None
-    
+
     return user.accounts[0]
+
 
 def verificarValor(valor):
     try:
@@ -247,10 +259,11 @@ def verificarValor(valor):
         if valor_float > 0:
             return valor_float
         else:
-            raise ValueError            
+            raise ValueError
     except ValueError:
         print("Operação falhou! O valor informado é inválido.")
         return None
+
 
 @log_transacao
 def depositar(users):
@@ -260,7 +273,7 @@ def depositar(users):
     if not user:
         print("Usuário não encontrado, registre-se primeiro!")
         return
-    
+
     valor = verificarValor(input("Informe o valor do depósito: "))
     if valor is None:
         return
@@ -273,6 +286,7 @@ def depositar(users):
     if user.transacao(conta, transacao):
         print("⥢--- Depósito realizado com sucesso! ---⥤")
 
+
 @log_transacao
 def sacar(users):
     cpf = input("Informe o CPF do cliente: ")
@@ -281,7 +295,7 @@ def sacar(users):
     if not user:
         print("Usuário não encontrado, registre-se primeiro!")
         return
-    
+
     valor = verificarValor(input("Informe o valor do saque: "))
     if valor is None:
         return
@@ -293,6 +307,7 @@ def sacar(users):
 
     if user.transacao(conta, transacao):
         print("⥢--- Saque realizado com sucesso! ---⥤")
+
 
 @log_transacao
 def exibir_extrato(clients):
@@ -315,15 +330,16 @@ def exibir_extrato(clients):
     else:
         for transacao in transacoes:
             extrato += f"{transacao['data']} - {transacao['tipo']}: R$ {transacao['valor']:.2f}\n"
-    
-    print(f"""                  
+
+    print(f"""
 ⥢============== EXTRATO ===============⥤
-          
+
 {extrato}
 
 Saldo: R$ {conta.saldo:.2f}
 ⥢======================================⥤
 """)
+
 
 @log_transacao
 def create_user(users):
@@ -342,6 +358,7 @@ def create_user(users):
     users.append(user)
 
     print("⥢--- Usuário criado com sucesso! ---⥤")
+
 
 def save_data(clientes, contas, filepath='data.json'):
     data = {
@@ -367,6 +384,7 @@ def save_data(clientes, contas, filepath='data.json'):
 
     with open(filepath, 'w') as f:
         json.dump(data, f, indent=4)
+
 
 def load_data(filepath='data.json'):
     try:
@@ -398,6 +416,7 @@ def load_data(filepath='data.json'):
     except FileNotFoundError:
         return [], []
 
+
 @log_transacao
 def criar_conta(number_account, users, accounts):
     cpf = input("Informe o CPF do cliente: ")
@@ -413,10 +432,12 @@ def criar_conta(number_account, users, accounts):
 
     print("⥢--- Conta criada com sucesso! ---⥤")
 
+
 def listar_contas(contas):
     for conta in contas:
-        print(" •"+ ("-=" * 19) + "-• ")
+        print(" •" + ("-=" * 19) + "-• ")
         print(str(conta))
+
 
 def main():
     clientes, contas = load_data()
@@ -425,23 +446,24 @@ def main():
         opcao = menu()
         match opcao:
             case "1":
-                depositar(clientes)        
-            case "2":        
+                depositar(clientes)
+            case "2":
                 sacar(clientes)
-            case "3": 
-                exibir_extrato(clientes)            
-            case "4":         
-                number_account = len(contas) + 1                
-                criar_conta(number_account, clientes, contas)            
-            case "5":         
+            case "3":
+                exibir_extrato(clientes)
+            case "4":
+                number_account = len(contas) + 1
+                criar_conta(number_account, clientes, contas)
+            case "5":
                 listar_contas(contas)
-            case "6": 
+            case "6":
                 create_user(clientes)
-            case "0":         
+            case "0":
                 print("Operação finalizada!")
                 save_data(clientes, contas)
                 break
             case _:
                 print("Operação inválida, por favor selecione uma opção!")
+
 
 main()
