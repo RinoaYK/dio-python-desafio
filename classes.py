@@ -1,5 +1,6 @@
+import json
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ContasIterador:
     def __init__(self, accounts):
@@ -42,6 +43,9 @@ class PessoaFisica(Client):
         self.name = name
         self.birthday = birthday
         self.cpf = cpf
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}: ('{self.name}', '{self.cpf}')>"
 
 class Account(ABC):
     def __init__(self, number, client):
@@ -127,6 +131,9 @@ class ContaCorrente(Account):
         C/C: {self.number}
         Titular: {self.client.name}
         """
+    
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: ('{self.agencia}', '{self.number}', '{self.client.name}')>"
  
 class History:
     def __init__(self):
@@ -205,6 +212,7 @@ def log_transacao(func):
         return resultado
 
     return envelope
+
 
 def menu():
     menu = """
@@ -335,6 +343,61 @@ def create_user(users):
 
     print("⥢--- Usuário criado com sucesso! ---⥤")
 
+def save_data(clientes, contas, filepath='data.json'):
+    data = {
+        'clientes': [
+            {
+                'name': cliente.name,
+                'birthday': cliente.birthday,
+                'cpf': cliente.cpf,
+                'adress': cliente.adress,
+                'accounts': [
+                    {
+                        'number': conta.number,
+                        'agencia': conta.agencia,
+                        'saldo': conta.saldo,
+                        'history': conta.history.transacoes,
+                    }
+                    for conta in cliente.accounts
+                ]
+            }
+            for cliente in clientes
+        ]
+    }
+
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=4)
+
+def load_data(filepath='data.json'):
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+
+        clientes = []
+        contas = []
+        for cliente_data in data['clientes']:
+            cliente = PessoaFisica(
+                name=cliente_data['name'],
+                birthday=cliente_data['birthday'],
+                cpf=cliente_data['cpf'],
+                adress=cliente_data['adress']
+            )
+            clientes.append(cliente)
+
+            for conta_data in cliente_data['accounts']:
+                conta = ContaCorrente(
+                    number=conta_data['number'],
+                    client=cliente
+                )
+                conta._saldo = conta_data['saldo']
+                conta._history._transacoes = conta_data['history']
+                cliente.accounts.append(conta)
+                contas.append(conta)
+
+        return clientes, contas
+    except FileNotFoundError:
+        return [], []
+
 @log_transacao
 def criar_conta(number_account, users, accounts):
     cpf = input("Informe o CPF do cliente: ")
@@ -356,8 +419,7 @@ def listar_contas(contas):
         print(str(conta))
 
 def main():
-    clientes = []
-    contas = []
+    clientes, contas = load_data()
 
     while True:
         opcao = menu()
@@ -377,6 +439,7 @@ def main():
                 create_user(clientes)
             case "0":         
                 print("Operação finalizada!")
+                save_data(clientes, contas)
                 break
             case _:
                 print("Operação inválida, por favor selecione uma opção!")
